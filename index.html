@@ -193,6 +193,9 @@
                 return;
             }
 
+            // Get current timestamp in ISO format
+            const currentTime = new Date().toISOString();
+            
             // Prepare payload
             const payload = {
                 name: name,
@@ -201,7 +204,9 @@
                 price: price,
                 total: total,
                 paied: paied,
-                methodpay: methodpay
+                methodpay: methodpay,
+                created: currentTime,
+                modified: currentTime
             };
 
             // Show loading
