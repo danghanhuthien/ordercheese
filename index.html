@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Lý Đơn Bánh</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-pink-50 to-orange-50">
+    <div class="p-4">
+        <div class="max-w-md mx-auto">
+            <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-pink-500 to-orange-400 p-6">
+                    <h1 class="text-2xl font-bold text-white text-center">
+                        🎂 Đơn Hàng Bánh
+                    </h1>
+                </div>
+
+                <!-- Form -->
+                <div class="p-6 space-y-4">
+                    <!-- Tên bánh -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Tên bánh
+                        </label>
+                        <input
+                            type="text"
+                            id="name"
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition"
+                            placeholder="Nhập tên bánh"
+                        />
+                    </div>
+
+                    <!-- Size -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Size (cm)
+                        </label>
+                        <input
+                            type="number"
+                            id="size"
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition"
+                            placeholder="Nhập size"
+                        />
+                    </div>
+
+                    <!-- Giá tiền -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Giá tiền (VNĐ)
+                        </label>
+                        <input
+                            type="number"
+                            id="price"
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition"
+                            placeholder="Nhập giá"
+                        />
+                    </div>
+
+                    <!-- Số lượng -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Số lượng
+                        </label>
+                        <input
+                            type="number"
+                            id="qty"
+                            min="1"
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition"
+                            placeholder="Nhập số lượng"
+                        />
+                    </div>
+
+                    <!-- Tổng tiền -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium text-gray-700">Tổng tiền:</span>
+                            <span class="text-xl font-bold text-pink-600" id="total">0 đ</span>
+                        </div>
+                    </div>
+
+                    <!-- Phương thức thanh toán -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Phương thức thanh toán
+                        </label>
+                        <div class="flex gap-4">
+                            <label class="flex items-center flex-1 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="methodpay"
+                                    value="Cash"
+                                    checked
+                                    class="w-4 h-4 text-pink-600 focus:ring-pink-500"
+                                />
+                                <span class="ml-2 text-gray-700">💵 Tiền mặt</span>
+                            </label>
+                            <label class="flex items-center flex-1 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="methodpay"
+                                    value="Bank"
+                                    class="w-4 h-4 text-pink-600 focus:ring-pink-500"
+                                />
+                                <span class="ml-2 text-gray-700">🏦 Chuyển khoản</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Trạng thái thanh toán -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <label class="flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                id="paied"
+                                class="w-5 h-5 text-pink-600 rounded focus:ring-pink-500"
+                            />
+                            <span class="ml-3 text-sm font-medium text-gray-700" id="paiedText">
+                                ⏳ Chưa thanh toán
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Message -->
+                    <div id="message" class="hidden p-4 rounded-lg"></div>
+
+                    <!-- Submit Button -->
+                    <button
+                        id="submitBtn"
+                        class="w-full bg-gradient-to-r from-pink-500 to-orange-400 text-white font-semibold py-4 rounded-lg hover:from-pink-600 hover:to-orange-500 transition-all duration-200 shadow-lg"
+                    >
+                        📤 Gửi đơn hàng
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elements
+        const nameInput = document.getElementById('name');
+        const sizeInput = document.getElementById('size');
+        const priceInput = document.getElementById('price');
+        const qtyInput = document.getElementById('qty');
+        const totalDisplay = document.getElementById('total');
+        const paiedCheckbox = document.getElementById('paied');
+        const paiedText = document.getElementById('paiedText');
+        const messageDiv = document.getElementById('message');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // Calculate total
+        function updateTotal() {
+            const price = parseInt(priceInput.value) || 0;
+            const qty = parseInt(qtyInput.value) || 0;
+            const total = price * qty;
+            totalDisplay.textContent = total.toLocaleString('vi-VN') + ' đ';
+        }
+
+        // Update paied text
+        paiedCheckbox.addEventListener('change', function() {
+            paiedText.textContent = this.checked ? '✅ Đã thanh toán' : '⏳ Chưa thanh toán';
+        });
+
+        // Update total on input
+        priceInput.addEventListener('input', updateTotal);
+        qtyInput.addEventListener('input', updateTotal);
+
+        // Submit handler
+        submitBtn.addEventListener('click', async function() {
+            // Get form data
+            const name = nameInput.value.trim();
+            const size = parseInt(sizeInput.value) || 0;
+            const qty = parseInt(qtyInput.value) || 0;
+            const price = parseInt(priceInput.value) || 0;
+            const total = price * qty;
+            const paied = paiedCheckbox.checked;
+            const methodpay = document.querySelector('input[name="methodpay"]:checked').value;
+
+            // Validation
+            if (!name) {
+                showMessage('error', 'Vui lòng nhập tên bánh!');
+                return;
+            }
+            if (size <= 0 || qty <= 0 || price <= 0) {
+                showMessage('error', 'Vui lòng nhập đầy đủ thông tin hợp lệ!');
+                return;
+            }
+
+            // Prepare payload
+            const payload = {
+                name: name,
+                size: size,
+                qty: qty,
+                price: price,
+                total: total,
+                paied: paied,
+                methodpay: methodpay
+            };
+
+            // Show loading
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '⏳ Đang gửi...';
+
+            try {
+                const response = await fetch(
+                    'https://default29a62967a2e8415fbfe91878c7d99f.de.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/df17982d2bcb43b8b68efa0d6d260c84/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=-bqBPONxw9o5T0PNj9jEMxwBZk_rzdTKs-Q_nd4GtGE',
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(payload)
+                    }
+                );
+
+                if (response.ok) {
+                    showMessage('success', 'Đã gửi đơn hàng thành công! 🎉');
+                    // Reset form
+                    nameInput.value = '';
+                    sizeInput.value = '';
+                    priceInput.value = '';
+                    qtyInput.value = '';
+                    paiedCheckbox.checked = false;
+                    document.querySelector('input[name="methodpay"][value="Cash"]').checked = true;
+                    paiedText.textContent = '⏳ Chưa thanh toán';
+                    updateTotal();
+                } else {
+                    showMessage('error', `Lỗi: ${response.status} - ${response.statusText}`);
+                }
+            } catch (error) {
+                showMessage('error', `Không thể gửi: ${error.message}`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '📤 Gửi đơn hàng';
+            }
+        });
+
+        // Show message
+        function showMessage(type, text) {
+            messageDiv.className = type === 'success' 
+                ? 'p-4 rounded-lg bg-green-50 text-green-700 flex items-center gap-2'
+                : 'p-4 rounded-lg bg-red-50 text-red-700 flex items-center gap-2';
+            messageDiv.innerHTML = `
+                <span>${type === 'success' ? '✅' : '❌'}</span>
+                <span class="text-sm">${text}</span>
+            `;
+            messageDiv.classList.remove('hidden');
+            setTimeout(() => {
+                messageDiv.classList.add('hidden');
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
