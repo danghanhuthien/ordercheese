@@ -17,7 +17,7 @@
         <!-- Header -->
         <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6">
             <div class="bg-gradient-to-r from-pink-500 to-orange-400 p-6">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between mb-4">
                     <a href="index.html" class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
                         ← Tạo đơn
                     </a>
@@ -28,11 +28,21 @@
                         🔄 Làm mới
                     </button>
                 </div>
+                
+                <!-- Sheet Selector -->
+                <div class="bg-white/10 rounded-lg p-4">
+                    <label class="block text-white text-sm font-medium mb-2">
+                        Chọn bảng dữ liệu:
+                    </label>
+                    <select id="sheetSelector" class="w-full px-4 py-3 rounded-lg border-0 focus:ring-2 focus:ring-white outline-none text-gray-800 font-medium">
+                        <option value="">Đang tải danh sách sheets...</option>
+                    </select>
+                </div>
             </div>
         </div>
 
         <!-- Loading -->
-        <div id="loading" class="text-center py-12">
+        <div id="loading" class="hidden text-center py-12">
             <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-pink-500 border-t-transparent"></div>
             <p class="mt-4 text-gray-600">Đang tải dữ liệu...</p>
         </div>
@@ -41,7 +51,7 @@
         <div id="errorMsg" class="hidden bg-red-50 border-2 border-red-200 rounded-xl p-6 text-center">
             <p class="text-red-700 font-medium">❌ Không thể tải dữ liệu</p>
             <p class="text-red-600 text-sm mt-2" id="errorText"></p>
-            <button onclick="loadOrders()" class="mt-4 bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition">
+            <button onclick="loadSelectedSheet()" class="mt-4 bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition">
                 Thử lại
             </button>
         </div>
@@ -74,29 +84,43 @@
         <!-- Empty State -->
         <div id="emptyState" class="hidden bg-white rounded-xl p-12 text-center shadow-lg">
             <p class="text-6xl mb-4">🎂</p>
-            <p class="text-gray-600 text-lg">Chưa có đơn hàng nào</p>
+            <p class="text-gray-600 text-lg">Chưa có đơn hàng nào trong sheet này</p>
             <a href="index.html" class="inline-block mt-4 bg-gradient-to-r from-pink-500 to-orange-400 text-white px-6 py-3 rounded-lg hover:from-pink-600 hover:to-orange-500 transition">
-                Tạo đơn hàng đầu tiên
+                Tạo đơn hàng mới
             </a>
         </div>
     </div>
 
     <script>
-        const API_URL = 'https://default29a62967a2e8415fbfe91878c7d99f.de.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/df17982d2bcb43b8b68efa0d6d260c84/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=-bqBPONxw9o5T0PNj9jEMxwBZk_rzdTKs-Q_nd4GtGE';
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzIKlkryJvmaUHB5tFMvjwObJSww6ecqDBTDz_eFQAeVQUCmBk_PnbIRLUx8LpAh3qK/exec';
+        const SPREADSHEET_ID = '1swxvw6EKKoskgqtypSSlhfWz_2_GeRBws2VEMmzJluY';
+        
+        let currentSheets = [];
 
-        // Load orders on page load
-        window.addEventListener('DOMContentLoaded', loadOrders);
-        document.getElementById('refreshBtn').addEventListener('click', loadOrders);
+        // Load sheets list on page load
+        window.addEventListener('DOMContentLoaded', loadSheetsList);
+        
+        // Handle sheet selection
+        document.getElementById('sheetSelector').addEventListener('change', function() {
+            if (this.value) {
+                loadSelectedSheet();
+            }
+        });
 
-        async function loadOrders() {
-            showLoading();
-            
+        // Refresh button
+        document.getElementById('refreshBtn').addEventListener('click', loadSelectedSheet);
+
+        async function loadSheetsList() {
             try {
                 const response = await fetch(API_URL, {
-                    method: 'GET',
+                    method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                    }
+                    },
+                    body: JSON.stringify({
+                        action: 'listSheets',
+                        spreadsheetId: SPREADSHEET_ID
+                    })
                 });
 
                 if (!response.ok) {
@@ -105,46 +129,113 @@
 
                 const data = await response.json();
                 
-                // Extract orders from response body
-                let orders = [];
-                if (data.body && Array.isArray(data.body)) {
-                    orders = data.body;
-                } else if (Array.isArray(data)) {
-                    orders = data;
-                }
-
-                // Save to localStorage as cache
-                localStorage.setItem('orders_cache', JSON.stringify(orders));
-                localStorage.setItem('orders_cache_time', new Date().toISOString());
-
-                displayOrders(orders);
-            } catch (error) {
-                console.error('Error loading orders:', error);
-                
-                // Try to load from cache
-                const cachedOrders = localStorage.getItem('orders_cache');
-                if (cachedOrders) {
-                    displayOrders(JSON.parse(cachedOrders));
-                    showCacheWarning();
+                if (data.status === 'success' && data.sheets) {
+                    currentSheets = data.sheets;
+                    populateSheetSelector(data.sheets);
                 } else {
-                    showError(error.message);
+                    throw new Error('Không thể lấy danh sách sheets');
                 }
+            } catch (error) {
+                console.error('Error loading sheets:', error);
+                document.getElementById('sheetSelector').innerHTML = '<option value="">❌ Lỗi tải danh sách</option>';
             }
         }
 
-        function displayOrders(orders) {
+        function populateSheetSelector(sheets) {
+            const selector = document.getElementById('sheetSelector');
+            selector.innerHTML = '<option value="">-- Chọn sheet --</option>';
+            
+            sheets.forEach(sheet => {
+                const option = document.createElement('option');
+                option.value = sheet.name;
+                option.textContent = sheet.name;
+                selector.appendChild(option);
+            });
+
+            // Auto select first sheet
+            if (sheets.length > 0) {
+                selector.value = sheets[0].name;
+                loadSelectedSheet();
+            }
+        }
+
+        async function loadSelectedSheet() {
+            const sheetName = document.getElementById('sheetSelector').value;
+            
+            if (!sheetName) {
+                return;
+            }
+
+            showLoading();
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'getRows',
+                        spreadsheetId: SPREADSHEET_ID,
+                        sheetName: sheetName
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.status === 'success' && data.data) {
+                    displayOrders(data.data);
+                } else {
+                    throw new Error('Không có dữ liệu');
+                }
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                showError(error.message);
+            }
+        }
+
+        function displayOrders(rows) {
             hideLoading();
             
-            if (!orders || orders.length === 0) {
+            if (!rows || rows.length === 0) {
                 showEmptyState();
                 return;
             }
 
+            // First row is header
+            const headers = rows[0];
+            const orders = rows.slice(1);
+
+            if (orders.length === 0) {
+                showEmptyState();
+                return;
+            }
+
+            // Find column indices
+            const nameIdx = headers.indexOf('Tên bánh');
+            const sizeIdx = headers.indexOf('Kích cỡ');
+            const qtyIdx = headers.indexOf('Số lượng');
+            const priceIdx = headers.indexOf('Giá tiền');
+            const totalIdx = headers.indexOf('Tổng tiền');
+            const paidIdx = headers.indexOf('Trạng thái thanh toán');
+            const methodIdx = headers.indexOf('Phương thức thanh toán');
+            const createdIdx = headers.indexOf('Ngày tạo');
+
             // Calculate stats
             const totalOrders = orders.length;
-            const paidOrders = orders.filter(o => o['Trạng thái thanh toán'] === 'Đã thanh toán').length;
+            let paidOrders = 0;
+            let totalRevenue = 0;
+
+            orders.forEach(order => {
+                if (order[paidIdx] === 'Đã thanh toán') paidOrders++;
+                totalRevenue += parseInt(order[totalIdx]) || 0;
+            });
+
             const unpaidOrders = totalOrders - paidOrders;
-            const totalRevenue = orders.reduce((sum, o) => sum + (parseInt(o['Tổng tiền']) || 0), 0);
 
             // Update stats
             document.getElementById('totalOrders').textContent = totalOrders;
@@ -158,15 +249,15 @@
             ordersListDiv.innerHTML = '';
             
             orders.forEach((order, index) => {
-                const isPaid = order['Trạng thái thanh toán'] === 'Đã thanh toán';
-                const isCash = order['Phương thức thanh toán'] === 'Tiền mặt';
+                const isPaid = order[paidIdx] === 'Đã thanh toán';
+                const isCash = order[methodIdx] === 'Tiền mặt';
                 
                 const orderCard = `
                     <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition">
                         <div class="flex items-start justify-between mb-4">
                             <div>
-                                <h3 class="text-lg font-bold text-gray-800">${order['Tên bánh'] || 'N/A'}</h3>
-                                <p class="text-sm text-gray-500">Size: ${order['Kích cỡ'] || 'N/A'} cm • SL: ${order['Số lượng'] || 'N/A'}</p>
+                                <h3 class="text-lg font-bold text-gray-800">${order[nameIdx] || 'N/A'}</h3>
+                                <p class="text-sm text-gray-500">Size: ${order[sizeIdx] || 'N/A'} cm • SL: ${order[qtyIdx] || 'N/A'}</p>
                             </div>
                             <span class="px-3 py-1 rounded-full text-xs font-medium ${isPaid ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}">
                                 ${isPaid ? '✅ Đã thanh toán' : '⏳ Chưa thanh toán'}
@@ -176,11 +267,11 @@
                         <div class="grid grid-cols-2 gap-4 mb-4">
                             <div>
                                 <p class="text-sm text-gray-600">Giá tiền</p>
-                                <p class="font-semibold text-gray-800">${parseInt(order['Giá tiền'] || 0).toLocaleString('vi-VN')}đ</p>
+                                <p class="font-semibold text-gray-800">${parseInt(order[priceIdx] || 0).toLocaleString('vi-VN')}đ</p>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-600">Tổng tiền</p>
-                                <p class="font-bold text-pink-600 text-lg">${parseInt(order['Tổng tiền'] || 0).toLocaleString('vi-VN')}đ</p>
+                                <p class="font-bold text-pink-600 text-lg">${parseInt(order[totalIdx] || 0).toLocaleString('vi-VN')}đ</p>
                             </div>
                         </div>
                         
@@ -191,7 +282,7 @@
                                 </span>
                             </div>
                             <div class="text-xs text-gray-500">
-                                ${order['Ngày tạo'] ? formatDate(order['Ngày tạo']) : 'N/A'}
+                                ${order[createdIdx] ? formatDate(order[createdIdx]) : 'N/A'}
                             </div>
                         </div>
                     </div>
@@ -205,7 +296,23 @@
 
         function formatDate(dateString) {
             if (!dateString) return 'N/A';
-            const date = new Date(dateString);
+            
+            // Handle various date formats
+            let date;
+            if (dateString.includes('T')) {
+                date = new Date(dateString);
+            } else {
+                // Assume DD/MM/YYYY HH:MM format
+                const parts = dateString.split(' ');
+                if (parts.length === 2) {
+                    const dateParts = parts[0].split('/');
+                    const timeParts = parts[1].split(':');
+                    date = new Date(dateParts[2], dateParts[1] - 1, dateParts[0], timeParts[0], timeParts[1]);
+                } else {
+                    return dateString;
+                }
+            }
+            
             const day = String(date.getDate()).padStart(2, '0');
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const year = date.getFullYear();
@@ -235,14 +342,6 @@
         function showEmptyState() {
             hideLoading();
             document.getElementById('emptyState').classList.remove('hidden');
-        }
-
-        function showCacheWarning() {
-            const cacheTime = localStorage.getItem('orders_cache_time');
-            if (cacheTime) {
-                const timeDiff = Math.floor((new Date() - new Date(cacheTime)) / 1000 / 60);
-                alert(`⚠️ Đang hiển thị dữ liệu cache (${timeDiff} phút trước). Không thể kết nối API.`);
-            }
         }
     </script>
 </body>
