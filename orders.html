@@ -129,6 +129,8 @@
 
                 const data = await response.json();
                 
+                console.log('Sheets response:', data);
+                
                 if (data.status === 'success' && data.sheets) {
                     currentSheets = data.sheets;
                     populateSheetSelector(data.sheets);
@@ -187,8 +189,10 @@
 
                 const data = await response.json();
                 
-                if (data.status === 'success' && data.data) {
-                    displayOrders(data.data);
+                console.log('Orders response:', data);
+                
+                if (data.status === 'success' && data.rows) {
+                    displayOrders(data.rows);
                 } else {
                     throw new Error('Không có dữ liệu');
                 }
