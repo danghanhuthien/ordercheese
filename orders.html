@@ -225,24 +225,13 @@
                 return;
             }
 
-            // First row is header
-            const headers = rows[0];
-            const orders = rows.slice(1);
+            // Rows are already objects with keys as headers
+            const orders = rows;
 
             if (orders.length === 0) {
                 showEmptyState();
                 return;
             }
-
-            // Find column indices
-            const nameIdx = headers.indexOf('Tên bánh');
-            const sizeIdx = headers.indexOf('Kích cỡ');
-            const qtyIdx = headers.indexOf('Số lượng');
-            const priceIdx = headers.indexOf('Giá tiền');
-            const totalIdx = headers.indexOf('Tổng tiền');
-            const paidIdx = headers.indexOf('Trạng thái thanh toán');
-            const methodIdx = headers.indexOf('Phương thức thanh toán');
-            const createdIdx = headers.indexOf('Ngày tạo');
 
             // Calculate stats
             const totalOrders = orders.length;
@@ -250,8 +239,8 @@
             let totalRevenue = 0;
 
             orders.forEach(order => {
-                if (order[paidIdx] === 'Đã thanh toán') paidOrders++;
-                totalRevenue += parseInt(order[totalIdx]) || 0;
+                if (order['Trạng thái thanh toán'] === 'Đã thanh toán') paidOrders++;
+                totalRevenue += parseInt(order['Tổng tiền']) || 0;
             });
 
             const unpaidOrders = totalOrders - paidOrders;
@@ -268,15 +257,15 @@
             ordersListDiv.innerHTML = '';
             
             orders.forEach((order, index) => {
-                const isPaid = order[paidIdx] === 'Đã thanh toán';
-                const isCash = order[methodIdx] === 'Tiền mặt';
+                const isPaid = order['Trạng thái thanh toán'] === 'Đã thanh toán';
+                const isCash = order['Phương thức thanh toán'] === 'Tiền mặt';
                 
                 const orderCard = `
                     <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition">
                         <div class="flex items-start justify-between mb-4">
                             <div>
-                                <h3 class="text-lg font-bold text-gray-800">${order[nameIdx] || 'N/A'}</h3>
-                                <p class="text-sm text-gray-500">Size: ${order[sizeIdx] || 'N/A'} cm • SL: ${order[qtyIdx] || 'N/A'}</p>
+                                <h3 class="text-lg font-bold text-gray-800">${order['Tên bánh'] || 'N/A'}</h3>
+                                <p class="text-sm text-gray-500">Size: ${order['Kích cỡ'] || 'N/A'} cm • SL: ${order['Số lượng'] || 'N/A'}</p>
                             </div>
                             <span class="px-3 py-1 rounded-full text-xs font-medium ${isPaid ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}">
                                 ${isPaid ? '✅ Đã thanh toán' : '⏳ Chưa thanh toán'}
@@ -286,11 +275,11 @@
                         <div class="grid grid-cols-2 gap-4 mb-4">
                             <div>
                                 <p class="text-sm text-gray-600">Giá tiền</p>
-                                <p class="font-semibold text-gray-800">${parseInt(order[priceIdx] || 0).toLocaleString('vi-VN')}đ</p>
+                                <p class="font-semibold text-gray-800">${parseInt(order['Giá tiền'] || 0).toLocaleString('vi-VN')}đ</p>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-600">Tổng tiền</p>
-                                <p class="font-bold text-pink-600 text-lg">${parseInt(order[totalIdx] || 0).toLocaleString('vi-VN')}đ</p>
+                                <p class="font-bold text-pink-600 text-lg">${parseInt(order['Tổng tiền'] || 0).toLocaleString('vi-VN')}đ</p>
                             </div>
                         </div>
                         
@@ -301,7 +290,7 @@
                                 </span>
                             </div>
                             <div class="text-xs text-gray-500">
-                                ${order[createdIdx] ? formatDate(order[createdIdx]) : 'N/A'}
+                                ${order['Ngày tạo'] ? formatDate(order['Ngày tạo']) : 'N/A'}
                             </div>
                         </div>
                     </div>
