@@ -97,6 +97,24 @@
         
         let currentSheets = [];
 
+        // ✅ Fetch with URL parameters (GET method) to bypass CORS preflight
+        async function fetchGoogleAppsScript(data) {
+            const params = new URLSearchParams({
+                data: JSON.stringify(data)
+            });
+            
+            const response = await fetch(`${API_URL}?${params.toString()}`, {
+                method: 'GET',
+                redirect: 'follow'
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            return await response.json();
+        }
+
         // Load sheets list on page load
         window.addEventListener('DOMContentLoaded', loadSheetsList);
         
@@ -112,22 +130,10 @@
 
         async function loadSheetsList() {
             try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        action: 'listSheets',
-                        spreadsheetId: SPREADSHEET_ID
-                    })
+                const data = await fetchGoogleAppsScript({
+                    action: 'listSheets',
+                    spreadsheetId: SPREADSHEET_ID
                 });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const data = await response.json();
                 
                 console.log('Sheets response:', data);
                 
@@ -171,23 +177,11 @@
             showLoading();
             
             try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        action: 'getRows',
-                        spreadsheetId: SPREADSHEET_ID,
-                        sheetName: sheetName
-                    })
+                const data = await fetchGoogleAppsScript({
+                    action: 'getRows',
+                    spreadsheetId: SPREADSHEET_ID,
+                    sheetName: sheetName
                 });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const data = await response.json();
                 
                 console.log('Orders response:', data);
                 
