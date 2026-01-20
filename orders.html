@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danh Sách Đơn Hàng</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-pink-50 to-orange-50">
+    <div class="p-4 max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6">
+            <div class="bg-gradient-to-r from-pink-500 to-orange-400 p-6">
+                <div class="flex items-center justify-between">
+                    <a href="index.html" class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+                        ← Tạo đơn
+                    </a>
+                    <h1 class="text-2xl font-bold text-white flex-1 text-center">
+                        📋 Danh Sách Đơn Hàng
+                    </h1>
+                    <button id="refreshBtn" class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+                        🔄 Làm mới
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-pink-500 border-t-transparent"></div>
+            <p class="mt-4 text-gray-600">Đang tải dữ liệu...</p>
+        </div>
+
+        <!-- Error Message -->
+        <div id="errorMsg" class="hidden bg-red-50 border-2 border-red-200 rounded-xl p-6 text-center">
+            <p class="text-red-700 font-medium">❌ Không thể tải dữ liệu</p>
+            <p class="text-red-600 text-sm mt-2" id="errorText"></p>
+            <button onclick="loadOrders()" class="mt-4 bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition">
+                Thử lại
+            </button>
+        </div>
+
+        <!-- Stats -->
+        <div id="stats" class="hidden grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-xl p-4 shadow-lg">
+                <p class="text-gray-600 text-sm">Tổng đơn</p>
+                <p class="text-2xl font-bold text-pink-600" id="totalOrders">0</p>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow-lg">
+                <p class="text-gray-600 text-sm">Đã thanh toán</p>
+                <p class="text-2xl font-bold text-green-600" id="paidOrders">0</p>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow-lg">
+                <p class="text-gray-600 text-sm">Chưa thanh toán</p>
+                <p class="text-2xl font-bold text-orange-600" id="unpaidOrders">0</p>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow-lg">
+                <p class="text-gray-600 text-sm">Tổng doanh thu</p>
+                <p class="text-2xl font-bold text-purple-600" id="totalRevenue">0đ</p>
+            </div>
+        </div>
+
+        <!-- Orders List -->
+        <div id="ordersList" class="hidden space-y-4">
+            <!-- Orders will be inserted here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden bg-white rounded-xl p-12 text-center shadow-lg">
+            <p class="text-6xl mb-4">🎂</p>
+            <p class="text-gray-600 text-lg">Chưa có đơn hàng nào</p>
+            <a href="index.html" class="inline-block mt-4 bg-gradient-to-r from-pink-500 to-orange-400 text-white px-6 py-3 rounded-lg hover:from-pink-600 hover:to-orange-500 transition">
+                Tạo đơn hàng đầu tiên
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://default29a62967a2e8415fbfe91878c7d99f.de.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/df17982d2bcb43b8b68efa0d6d260c84/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=-bqBPONxw9o5T0PNj9jEMxwBZk_rzdTKs-Q_nd4GtGE';
+
+        // Load orders on page load
+        window.addEventListener('DOMContentLoaded', loadOrders);
+        document.getElementById('refreshBtn').addEventListener('click', loadOrders);
+
+        async function loadOrders() {
+            showLoading();
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                // Extract orders from response body
+                let orders = [];
+                if (data.body && Array.isArray(data.body)) {
+                    orders = data.body;
+                } else if (Array.isArray(data)) {
+                    orders = data;
+                }
+
+                // Save to localStorage as cache
+                localStorage.setItem('orders_cache', JSON.stringify(orders));
+                localStorage.setItem('orders_cache_time', new Date().toISOString());
+
+                displayOrders(orders);
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                
+                // Try to load from cache
+                const cachedOrders = localStorage.getItem('orders_cache');
+                if (cachedOrders) {
+                    displayOrders(JSON.parse(cachedOrders));
+                    showCacheWarning();
+                } else {
+                    showError(error.message);
+                }
+            }
+        }
+
+        function displayOrders(orders) {
+            hideLoading();
+            
+            if (!orders || orders.length === 0) {
+                showEmptyState();
+                return;
+            }
+
+            // Calculate stats
+            const totalOrders = orders.length;
+            const paidOrders = orders.filter(o => o['Trạng thái thanh toán'] === 'Đã thanh toán').length;
+            const unpaidOrders = totalOrders - paidOrders;
+            const totalRevenue = orders.reduce((sum, o) => sum + (parseInt(o['Tổng tiền']) || 0), 0);
+
+            // Update stats
+            document.getElementById('totalOrders').textContent = totalOrders;
+            document.getElementById('paidOrders').textContent = paidOrders;
+            document.getElementById('unpaidOrders').textContent = unpaidOrders;
+            document.getElementById('totalRevenue').textContent = totalRevenue.toLocaleString('vi-VN') + 'đ';
+            document.getElementById('stats').classList.remove('hidden');
+
+            // Display orders
+            const ordersListDiv = document.getElementById('ordersList');
+            ordersListDiv.innerHTML = '';
+            
+            orders.forEach((order, index) => {
+                const isPaid = order['Trạng thái thanh toán'] === 'Đã thanh toán';
+                const isCash = order['Phương thức thanh toán'] === 'Tiền mặt';
+                
+                const orderCard = `
+                    <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-800">${order['Tên bánh'] || 'N/A'}</h3>
+                                <p class="text-sm text-gray-500">Size: ${order['Kích cỡ'] || 'N/A'} cm • SL: ${order['Số lượng'] || 'N/A'}</p>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-xs font-medium ${isPaid ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}">
+                                ${isPaid ? '✅ Đã thanh toán' : '⏳ Chưa thanh toán'}
+                            </span>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <p class="text-sm text-gray-600">Giá tiền</p>
+                                <p class="font-semibold text-gray-800">${parseInt(order['Giá tiền'] || 0).toLocaleString('vi-VN')}đ</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Tổng tiền</p>
+                                <p class="font-bold text-pink-600 text-lg">${parseInt(order['Tổng tiền'] || 0).toLocaleString('vi-VN')}đ</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm ${isCash ? 'text-green-600' : 'text-blue-600'}">
+                                    ${isCash ? '💵 Tiền mặt' : '🏦 Chuyển khoản'}
+                                </span>
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                ${order['Ngày tạo'] ? formatDate(order['Ngày tạo']) : 'N/A'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                ordersListDiv.innerHTML += orderCard;
+            });
+            
+            ordersListDiv.classList.remove('hidden');
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${day}/${month}/${year} ${hours}:${minutes}`;
+        }
+
+        function showLoading() {
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('errorMsg').classList.add('hidden');
+            document.getElementById('ordersList').classList.add('hidden');
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('stats').classList.add('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        function showError(message) {
+            hideLoading();
+            document.getElementById('errorMsg').classList.remove('hidden');
+            document.getElementById('errorText').textContent = message;
+        }
+
+        function showEmptyState() {
+            hideLoading();
+            document.getElementById('emptyState').classList.remove('hidden');
+        }
+
+        function showCacheWarning() {
+            const cacheTime = localStorage.getItem('orders_cache_time');
+            if (cacheTime) {
+                const timeDiff = Math.floor((new Date() - new Date(cacheTime)) / 1000 / 60);
+                alert(`⚠️ Đang hiển thị dữ liệu cache (${timeDiff} phút trước). Không thể kết nối API.`);
+            }
+        }
+    </script>
+</body>
+</html>
